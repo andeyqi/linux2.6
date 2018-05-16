@@ -16,6 +16,13 @@
 #include <linux/kobject.h>
 #include <linux/kobj_map.h>
 
+/*结构体中有一个互斥锁lock，一个probes[255]数组，数组元素为struct probe的指针。
+根据下面的函数作用来看，kobj_map结构体是用来管理设备号及其对应的设备的。
+kobj_map函数就是将指定的设备号加入到该数组，kobj_lookup则查找该结构体，然后返回对应设备号的kobject对象，利用
+利用该kobject对象，我们可以得到包含它的对象如cdev。
+struct probe结构体中的get函数指针就是用来获得kobject对象的，可能不同类型的设备获取的方式不同，我现在就看过cdev的exact_match函数。
+*/
+
 struct kobj_map {
 	struct probe {
 		struct probe *next;
