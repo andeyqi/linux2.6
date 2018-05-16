@@ -44,6 +44,16 @@ struct kobj_map {
 #define MKDEV(ma,mi)	(((ma) << MINORBITS) | (mi))/* 根据主次设备号，生成dev_t 20:12 */
 
 
+/*dev_t的前12位为主设备号，后20位为次设备号。
+n = MAJOR(dev + range - 1) - MAJOR(dev) + 1 表示设备号范围(dev, dev+range)中不同的主设备号的个数。
+通常n的值为1。
+从代码中的第二个for循环可以看出kobj_map中的probes数组中每个元素为一个struct probe链表的头指针。
+每个链表中的probe对象有（MAJOR（probe.dev） % 255）值相同的关系。若主设备号小于255， 则每个链表中的probe都有相同的主设备号。
+链表中的元素是按照range值从小到大排列的。
+while循环即是找出该将p插入的位置。
+*/
+
+
 int kobj_map(struct kobj_map *domain, dev_t dev, unsigned long range,
 	     struct module *module, kobj_probe_t *probe,
 	     int (*lock)(dev_t, void *), void *data)
