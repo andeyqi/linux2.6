@@ -29,12 +29,20 @@ struct kobj_map {
 	struct mutex *lock;
 };
 
+#define MINORBITS	20 /* 次设备号位数定义 */
+#define MINORMASK	((1U << MINORBITS) - 1) /* 次设备号掩码 */
+
+#define MAJOR(dev)	((unsigned int) ((dev) >> MINORBITS))/* 从dev_t 结构中获取主设备号 */
+#define MINOR(dev)	((unsigned int) ((dev) & MINORMASK))/* 从dev_t 结构中获取次设备号 */
+#define MKDEV(ma,mi)	(((ma) << MINORBITS) | (mi))/* 根据主次设备号，生成dev_t 20:12 */
+
+
 int kobj_map(struct kobj_map *domain, dev_t dev, unsigned long range,
 	     struct module *module, kobj_probe_t *probe,
 	     int (*lock)(dev_t, void *), void *data)
 {
-	unsigned n = MAJOR(dev + range - 1) - MAJOR(dev) + 1;
-	unsigned index = MAJOR(dev);
+	unsigned n = MAJOR(dev + range - 1) - MAJOR(dev) + 1;/* 一般计算应该为1 */
+	unsigned index = MAJOR(dev); /* 根据传入的dev_t 获取主设备号，并以此为index */
 	unsigned i;
 	struct probe *p;
 
@@ -45,7 +53,7 @@ int kobj_map(struct kobj_map *domain, dev_t dev, unsigned long range,
 
 	if (p == NULL)
 		return -ENOMEM;
-
+	/* 初始化构造的struct probe 结构体 */
 	for (i = 0; i < n; i++, p++) {
 		p->owner = module;
 		p->get = probe;
@@ -54,12 +62,13 @@ int kobj_map(struct kobj_map *domain, dev_t dev, unsigned long range,
 		p->range = range;
 		p->data = data;
 	}
-	mutex_lock(domain->lock);
+	mutex_lock(domain->lock);/* 通过互斥锁来修改临界区域 */
+	/* 将构造出来的struct probe 插入指定的domain链表结构 */
 	for (i = 0, p -= n; i < n; i++, p++, index++) {
 		struct probe **s = &domain->probes[index % 255];
 		while (*s && (*s)->range < range)
 			s = &(*s)->next;
-		p->next = *s;
+		p->next = *s;/* 从这可以看出插入是按照顺序插入的 */
 		*s = p;
 	}
 	mutex_unlock(domain->lock);
